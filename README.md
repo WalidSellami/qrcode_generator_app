@@ -10,7 +10,7 @@ A modern, fast, client-side QR code generator with a frosted glassmorphism inter
 
 - **Pristine 1:1 Aspect Ratio**: Distortion-free QR rendering optimized for high-DPI displays.
 - **High-Quality Exports**:
-  - **PNG**: Ultra-sharp $1024\times 1024\text{ px}$ image with standard quiet-zone margins.
+  - **PNG**: Ultra-sharp $2048\times 2048\text{ px}$ image with standard quiet-zone margins.
   - **PDF**: Clean, print-ready A4 specification sheet.
 - **Smart Input Guard**: Accepts plain text, URLs, and numbers while automatically blocking raw programming code snippets.
 - **Premium Glassmorphism UI**: Ambient slate background that is gentle on the eyes with smooth micro-animations.

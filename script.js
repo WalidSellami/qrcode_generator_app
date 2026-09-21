@@ -214,25 +214,98 @@ function initResultPage() {
         typeNumber: qrVersion               // Force high version for dense matrix
     });
 
-    // Ensure pristine 1:1 aspect ratio and prevent duplicate canvas
+    // Re-render QR on-screen with large modules and tight gaps
     setTimeout(() => {
-        const canvas = qrContainer.querySelector('canvas');
-        const img = qrContainer.querySelector('img');
+        const srcCanvas = qrContainer.querySelector('canvas');
+        if (!srcCanvas || srcCanvas.width === 0) return;
 
-        if (canvas && img) {
-            canvas.style.display = 'none';
-            img.style.display = 'block';
-            img.style.width = '100%';
-            img.style.height = '100%';
-            img.style.aspectRatio = '1 / 1';
-            img.style.objectFit = 'contain';
-        } else if (canvas && !img) {
-            canvas.style.display = 'block';
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            canvas.style.aspectRatio = '1 / 1';
+        const srcCtx = srcCanvas.getContext('2d');
+        const srcSize = srcCanvas.width;
+        const imageData = srcCtx.getImageData(0, 0, srcSize, srcSize);
+        const pixels = imageData.data;
+        const threshold = 128;
+
+        // Detect module count from source canvas
+        let moduleCount = 0;
+        let inDark = false;
+        for (let x = 0; x < srcSize; x++) {
+            const idx = x * 4;
+            const isDark = pixels[idx] < threshold;
+            if (isDark && !inDark) { moduleCount++; inDark = true; }
+            else if (!isDark && inDark) { inDark = false; }
         }
-    }, 100);
+        let moduleCountV = 0;
+        inDark = false;
+        for (let y = 0; y < srcSize; y++) {
+            const idx = (y * srcSize) * 4;
+            const isDark = pixels[idx] < threshold;
+            if (isDark && !inDark) { moduleCountV++; inDark = true; }
+            else if (!isDark && inDark) { inDark = false; }
+        }
+        moduleCount = Math.max(moduleCount, moduleCountV);
+
+        if (moduleCount > 10) {
+            // Build a sharp display canvas with large blocks + tiny gaps
+            const displaySize = 600; // high-res for crisp display
+            const quietZone = 2;
+            const totalModules = moduleCount + (quietZone * 2);
+            const cellSize = displaySize / totalModules;
+            const gap = Math.max(0.15, cellSize * 0.01);
+            const modulePixelSize = srcSize / moduleCount;
+
+            const displayCanvas = document.createElement('canvas');
+            displayCanvas.width = displaySize;
+            displayCanvas.height = displaySize;
+            const ctx = displayCanvas.getContext('2d');
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, displaySize, displaySize);
+            ctx.imageSmoothingEnabled = false;
+
+            for (let row = 0; row < moduleCount; row++) {
+                for (let col = 0; col < moduleCount; col++) {
+                    const sx = Math.floor((col + 0.5) * modulePixelSize);
+                    const sy = Math.floor((row + 0.5) * modulePixelSize);
+                    const sIdx = (sy * srcSize + sx) * 4;
+                    const isDark = pixels[sIdx] < threshold;
+
+                    if (isDark) {
+                        const x = (col + quietZone) * cellSize + (gap / 2);
+                        const y = (row + quietZone) * cellSize + (gap / 2);
+                        const size = cellSize - gap;
+                        ctx.fillStyle = '#0a0d14';
+                        ctx.fillRect(x, y, size, size);
+                    }
+                }
+            }
+
+            // Replace library output with our custom render
+            qrContainer.innerHTML = '';
+            const displayImg = new Image();
+            displayImg.src = displayCanvas.toDataURL('image/png');
+            displayImg.style.width = '100%';
+            displayImg.style.height = '100%';
+            displayImg.style.aspectRatio = '1 / 1';
+            displayImg.style.objectFit = 'contain';
+            displayImg.style.display = 'block';
+            displayImg.style.imageRendering = 'crisp-edges';
+            qrContainer.appendChild(displayImg);
+
+            // Store the source canvas data for downloads
+            qrContainer._srcCanvas = srcCanvas;
+        } else {
+            // Fallback: just show the library output
+            const img = qrContainer.querySelector('img');
+            if (srcCanvas && img) {
+                srcCanvas.style.display = 'none';
+                img.style.display = 'block';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.aspectRatio = '1 / 1';
+                img.style.objectFit = 'contain';
+            }
+        }
+    }, 150);
 
     // Copy text to clipboard with micro-animation
     if (copyBtn) {
@@ -256,7 +329,7 @@ function initResultPage() {
     // Renders at 2048×2048 by default for print-quality output (300+ DPI at 17cm)
     // Uses large module cells with tight gaps for the "large grids, small spaces" look
     function getHighResCanvas(targetResolution = 2048, quietZoneModules = 2) {
-        const canvasEl = qrContainer.querySelector('canvas');
+        const canvasEl = qrContainer.querySelector('canvas') || qrContainer._srcCanvas;
         const imgEl = qrContainer.querySelector('img');
 
         const exportCanvas = document.createElement('canvas');
@@ -312,7 +385,7 @@ function initResultPage() {
                 // Successfully detected modules — render cell by cell
                 const totalModules = moduleCount + (quietZoneModules * 2);
                 const cellSize = targetResolution / totalModules;
-                const gap = Math.max(0.5, cellSize * 0.04); // Tight gap (4% of cell or 0.5px min)
+                const gap = Math.max(0.15, cellSize * 0.01); // Ultra-tight gap (1% of cell or 0.25px min)
                 const modulePixelSize = srcSize / moduleCount;
 
                 // Draw each module as a large solid block with tight gaps
@@ -358,7 +431,7 @@ function initResultPage() {
                 link.download = `qrcode-hd-${Date.now()}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
-                showToast('Ultra high-resolution PNG downloaded (2048×2048)!');
+                showToast('Ultra high-resolution PNG downloaded');
             } catch (err) {
                 showToast('Could not download PNG', true);
             }
@@ -412,14 +485,8 @@ function initResultPage() {
                 const lines = pdf.splitTextToSize(text, pageW - 40);
                 pdf.text(lines, pageW / 2, contentY + 8, { align: 'center' });
 
-                // Footer
-                pdf.setFont('helvetica', 'normal');
-                pdf.setFontSize(8);
-                pdf.setTextColor(160, 174, 192);
-                pdf.text('Generated by QR Code Generator', pageW / 2, pageH - 20, { align: 'center' });
-
                 pdf.save(`qrcode-${Date.now()}.pdf`);
-                showToast('High-quality PDF downloaded!');
+                showToast('High-quality PDF downloaded');
             } catch (err) {
                 console.error(err);
                 showToast('Could not generate PDF', true);
