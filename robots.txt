@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://qrcode-generator.pages.dev/sitemap.xml
