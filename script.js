@@ -3,6 +3,25 @@
    ========================================================================== */
 
 // --------------------------------------------------------------------------
+// Mobile Browser Compatibility Patch (Android 10+ User-Agent fix for qrcodejs)
+// --------------------------------------------------------------------------
+if (typeof window !== 'undefined' && window.QRCode) {
+    try {
+        const _origMakeCode = window.QRCode.prototype.makeCode;
+        window.QRCode.prototype.makeCode = function (text) {
+            if (this._android === true) this._android = false;
+            if (this._oDrawing && this._oDrawing._android === true) this._oDrawing._android = false;
+            _origMakeCode.call(this, text);
+            if (this._oDrawing && typeof this._oDrawing.makeImage === 'function') {
+                try { this._oDrawing.makeImage(); } catch (e) { }
+            }
+        };
+    } catch (e) {
+        console.warn('QRCode patch note:', e);
+    }
+}
+
+// --------------------------------------------------------------------------
 // Toast Notification
 // --------------------------------------------------------------------------
 function showToast(message, isError = false) {
@@ -148,9 +167,23 @@ function initInputPage() {
             return;
         }
 
-        // Save input and navigate
-        localStorage.setItem('qr_text', value);
-        window.location.href = 'result.html';
+        // Save input in storage with cross-browser and private browsing fallback
+        try {
+            localStorage.setItem('qr_text', value);
+        } catch (err) {
+            console.warn('localStorage unavailable:', err);
+        }
+        try {
+            sessionStorage.setItem('qr_text', value);
+        } catch (err) { }
+
+        // For maximum mobile compatibility (e.g. strict private/incognito browsing or in-app webviews),
+        // also pass as URL query param if within safe URL length (<1500 chars)
+        if (value.length < 1500) {
+            window.location.href = 'result.html?data=' + encodeURIComponent(value);
+        } else {
+            window.location.href = 'result.html';
+        }
     });
 
     // Allow Enter key (without Shift) to submit
@@ -174,8 +207,24 @@ function initResultPage() {
 
     if (!qrContainer) return;
 
-    // Get stored data
-    const text = localStorage.getItem('qr_text');
+    // Retrieve stored payload text (URL query param -> localStorage -> sessionStorage)
+    let text = null;
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        text = urlParams.get('data');
+    } catch (e) { }
+
+    if (!text) {
+        try {
+            text = localStorage.getItem('qr_text');
+        } catch (e) { }
+    }
+    if (!text) {
+        try {
+            text = sessionStorage.getItem('qr_text');
+        } catch (e) { }
+    }
+
     if (!text || containsCode(text)) {
         window.location.href = 'index.html';
         return;
@@ -187,125 +236,91 @@ function initResultPage() {
         payloadText.title = text;
     }
 
-    // ── High-Version Dense Matrix QR Code ──
-    // Force a higher QR version for a denser grid with more modules.
-    // Version 10 = 57×57 modules, Version 15 = 77×77, Version 20 = 97×97, etc.
-    // We pick at least version 10 so even short URLs produce a visually dense matrix.
-    function getMinVersion(text, targetMinVersion) {
-        // The library auto-selects the minimum version needed for the data.
-        // We enforce at least targetMinVersion for a denser, more professional look.
-        // Version capacities with H error correction (alphanumeric/byte):
-        //  v1=17, v5=106, v10=271, v15=520, v20=858, v25=1273, v30=1732, v40=2953
-        const minRequired = targetMinVersion || 10;
-        // If text is very long, the library will auto-pick a higher version anyway.
-        return minRequired;
-    }
+    // ── High-Reliability QR Code Renderer ──
+    // Uses ISO/IEC 18004 specification with Reed-Solomon Level H error correction (30%).
+    // Directly reads model module data to guarantee instant, synchronous rendering on
+    // all mobile browsers (iOS Safari, Chrome for Android, Samsung Internet, WebViews).
+    function renderQRCode() {
+        qrContainer.innerHTML = '';
 
-    const qrVersion = getMinVersion(text, 10);
-
-    qrContainer.innerHTML = '';
-    new QRCode(qrContainer, {
-        text: text,
-        width: 420,
-        height: 420,
-        colorDark: '#0a0d14',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H, // Highest error recovery (30%)
-        typeNumber: qrVersion               // Force high version for dense matrix
-    });
-
-    // Re-render QR on-screen with large modules and tight gaps
-    setTimeout(() => {
-        const srcCanvas = qrContainer.querySelector('canvas');
-        if (!srcCanvas || srcCanvas.width === 0) return;
-
-        const srcCtx = srcCanvas.getContext('2d');
-        const srcSize = srcCanvas.width;
-        const imageData = srcCtx.getImageData(0, 0, srcSize, srcSize);
-        const pixels = imageData.data;
-        const threshold = 128;
-
-        // Detect module count from source canvas
-        let moduleCount = 0;
-        let inDark = false;
-        for (let x = 0; x < srcSize; x++) {
-            const idx = x * 4;
-            const isDark = pixels[idx] < threshold;
-            if (isDark && !inDark) { moduleCount++; inDark = true; }
-            else if (!isDark && inDark) { inDark = false; }
+        const tempDiv = document.createElement('div');
+        let qrObj = null;
+        try {
+            qrObj = new QRCode(tempDiv, {
+                text: text,
+                width: 512,
+                height: 512,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } catch (err) {
+            console.error('QRCode generation error:', err);
+            showToast('Failed to generate QR code', true);
+            return;
         }
-        let moduleCountV = 0;
-        inDark = false;
-        for (let y = 0; y < srcSize; y++) {
-            const idx = (y * srcSize) * 4;
-            const isDark = pixels[idx] < threshold;
-            if (isDark && !inDark) { moduleCountV++; inDark = true; }
-            else if (!isDark && inDark) { inDark = false; }
-        }
-        moduleCount = Math.max(moduleCount, moduleCountV);
 
-        if (moduleCount > 10) {
-            // Build a sharp display canvas with large blocks + tiny gaps
-            const displaySize = 600; // high-res for crisp display
-            const quietZone = 2;
+        const model = qrObj ? qrObj._oQRCode : null;
+
+        if (model && typeof model.getModuleCount === 'function') {
+            qrContainer._qrModel = model;
+            const moduleCount = model.getModuleCount();
+
+            // Zero quiet zone for edge-to-edge rendering
+            const quietZone = 0;
             const totalModules = moduleCount + (quietZone * 2);
-            const cellSize = displaySize / totalModules;
-            const gap = Math.max(0.15, cellSize * 0.01);
-            const modulePixelSize = srcSize / moduleCount;
+
+            const dpr = window.devicePixelRatio || 1;
+            const baseSize = 800;
+            const cellSize = (baseSize / totalModules);
+            const canvasSize = baseSize * dpr;
 
             const displayCanvas = document.createElement('canvas');
-            displayCanvas.width = displaySize;
-            displayCanvas.height = displaySize;
+            displayCanvas.width = canvasSize;
+            displayCanvas.height = canvasSize;
             const ctx = displayCanvas.getContext('2d');
 
+            ctx.scale(dpr, dpr);
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, displaySize, displaySize);
-            ctx.imageSmoothingEnabled = false;
+            ctx.fillRect(0, 0, baseSize, baseSize);
 
+            ctx.fillStyle = '#000000';
             for (let row = 0; row < moduleCount; row++) {
                 for (let col = 0; col < moduleCount; col++) {
-                    const sx = Math.floor((col + 0.5) * modulePixelSize);
-                    const sy = Math.floor((row + 0.5) * modulePixelSize);
-                    const sIdx = (sy * srcSize + sx) * 4;
-                    const isDark = pixels[sIdx] < threshold;
-
-                    if (isDark) {
-                        const x = (col + quietZone) * cellSize + (gap / 2);
-                        const y = (row + quietZone) * cellSize + (gap / 2);
-                        const size = cellSize - gap;
-                        ctx.fillStyle = '#0a0d14';
-                        ctx.fillRect(x, y, size, size);
+                    if (model.isDark(row, col)) {
+                        const x = (col + quietZone) * cellSize;
+                        const y = (row + quietZone) * cellSize;
+                        ctx.fillRect(x, y, cellSize + 0.5, cellSize + 0.5);
                     }
                 }
             }
 
-            // Replace library output with our custom render
-            qrContainer.innerHTML = '';
+            qrContainer._srcCanvas = displayCanvas;
+
             const displayImg = new Image();
+            displayImg.alt = 'QR Code';
             displayImg.src = displayCanvas.toDataURL('image/png');
+            displayImg.className = 'qr-code-img';
             displayImg.style.width = '100%';
             displayImg.style.height = '100%';
             displayImg.style.aspectRatio = '1 / 1';
-            displayImg.style.objectFit = 'contain';
+            displayImg.style.objectFit = 'fill';
             displayImg.style.display = 'block';
-            displayImg.style.imageRendering = 'crisp-edges';
-            qrContainer.appendChild(displayImg);
 
-            // Store the source canvas data for downloads
-            qrContainer._srcCanvas = srcCanvas;
+            qrContainer.appendChild(displayImg);
         } else {
-            // Fallback: just show the library output
-            const img = qrContainer.querySelector('img');
-            if (srcCanvas && img) {
-                srcCanvas.style.display = 'none';
-                img.style.display = 'block';
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.aspectRatio = '1 / 1';
-                img.style.objectFit = 'contain';
+            const fallbackCanvas = tempDiv.querySelector('canvas');
+            if (fallbackCanvas) {
+                fallbackCanvas.style.width = '100%';
+                fallbackCanvas.style.height = '100%';
+                qrContainer.appendChild(fallbackCanvas);
+                qrContainer._srcCanvas = fallbackCanvas;
             }
         }
-    }, 150);
+    }
+
+    // Render QR Code immediately
+    renderQRCode();
 
     // Copy text to clipboard with micro-animation
     if (copyBtn) {
@@ -325,13 +340,9 @@ function initResultPage() {
         });
     }
 
-    // Helper: Build crisp high-resolution export canvas
-    // Renders at 2048×2048 by default for print-quality output (300+ DPI at 17cm)
-    // Uses large module cells with tight gaps for the "large grids, small spaces" look
+    // Helper: Build crisp high-resolution export canvas (strictly 2048×2048 for print)
     function getHighResCanvas(targetResolution = 2048, quietZoneModules = 2) {
-        const canvasEl = qrContainer.querySelector('canvas') || qrContainer._srcCanvas;
-        const imgEl = qrContainer.querySelector('img');
-
+        const model = qrContainer._qrModel;
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = targetResolution;
         exportCanvas.height = targetResolution;
@@ -340,81 +351,41 @@ function initResultPage() {
         // Crisp white background
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, targetResolution, targetResolution);
-
-        // Disable image smoothing for pixel-perfect rendering
         ctx.imageSmoothingEnabled = false;
 
-        // Try to extract raw QR module data from the source canvas for cell-by-cell rendering
-        if (canvasEl && canvasEl.width > 0) {
-            const srcCtx = canvasEl.getContext('2d');
-            const srcSize = canvasEl.width;
-            const imageData = srcCtx.getImageData(0, 0, srcSize, srcSize);
-            const pixels = imageData.data;
+        // Mathematical cell-by-cell rendering using the exact ISO matrix with integer pixel scaling
+        if (model && typeof model.getModuleCount === 'function') {
+            const moduleCount = model.getModuleCount();
+            const totalModules = moduleCount + (quietZoneModules * 2);
+            const scale = Math.max(1, Math.floor(targetResolution / totalModules));
+            const qrPixelSize = totalModules * scale;
+            const offset = Math.floor((targetResolution - qrPixelSize) / 2);
 
-            // Detect module count by scanning the top row for dark/light transitions
-            // The qrcode.js library renders each module as equal-width blocks
-            let moduleCount = 0;
-            let inDark = false;
-            const threshold = 128;
-            for (let x = 0; x < srcSize; x++) {
-                const idx = x * 4;
-                const isDark = pixels[idx] < threshold;
-                if (isDark && !inDark) {
-                    moduleCount++;
-                    inDark = true;
-                } else if (!isDark && inDark) {
-                    inDark = false;
-                }
-            }
-            // Scan first column too for verification
-            let moduleCountV = 0;
-            inDark = false;
-            for (let y = 0; y < srcSize; y++) {
-                const idx = (y * srcSize) * 4;
-                const isDark = pixels[idx] < threshold;
-                if (isDark && !inDark) {
-                    moduleCountV++;
-                    inDark = true;
-                } else if (!isDark && inDark) {
-                    inDark = false;
-                }
-            }
-            moduleCount = Math.max(moduleCount, moduleCountV);
-
-            if (moduleCount > 10) {
-                // Successfully detected modules — render cell by cell
-                const totalModules = moduleCount + (quietZoneModules * 2);
-                const cellSize = targetResolution / totalModules;
-                const gap = Math.max(0.15, cellSize * 0.01); // Ultra-tight gap (1% of cell or 0.25px min)
-                const modulePixelSize = srcSize / moduleCount;
-
-                // Draw each module as a large solid block with tight gaps
-                for (let row = 0; row < moduleCount; row++) {
-                    for (let col = 0; col < moduleCount; col++) {
-                        // Sample the center of each source module
-                        const sx = Math.floor((col + 0.5) * modulePixelSize);
-                        const sy = Math.floor((row + 0.5) * modulePixelSize);
-                        const sIdx = (sy * srcSize + sx) * 4;
-                        const isDark = pixels[sIdx] < threshold;
-
-                        if (isDark) {
-                            const x = (col + quietZoneModules) * cellSize + (gap / 2);
-                            const y = (row + quietZoneModules) * cellSize + (gap / 2);
-                            const size = cellSize - gap;
-                            ctx.fillStyle = '#0a0d14';
-                            ctx.fillRect(x, y, size, size);
-                        }
+            ctx.fillStyle = '#000000';
+            for (let row = 0; row < moduleCount; row++) {
+                for (let col = 0; col < moduleCount; col++) {
+                    if (model.isDark(row, col)) {
+                        ctx.fillRect(
+                            offset + (col + quietZoneModules) * scale,
+                            offset + (row + quietZoneModules) * scale,
+                            scale,
+                            scale
+                        );
                     }
                 }
-            } else {
-                // Fallback: simple stretch render
-                const padding = targetResolution * 0.04;
-                const qrSize = targetResolution - (padding * 2);
-                ctx.drawImage(canvasEl, padding, padding, qrSize, qrSize);
             }
+            return exportCanvas;
+        }
+
+        // Secondary fallback if model is unavailable
+        const canvasEl = qrContainer.querySelector('canvas') || qrContainer._srcCanvas;
+        const imgEl = qrContainer.querySelector('img');
+        if (canvasEl && canvasEl.width > 0) {
+            const padding = Math.round(targetResolution * 0.04);
+            const qrSize = targetResolution - (padding * 2);
+            ctx.drawImage(canvasEl, padding, padding, qrSize, qrSize);
         } else if (imgEl && imgEl.complete) {
-            // Fallback for img element: draw stretched with small padding
-            const padding = targetResolution * 0.04;
+            const padding = Math.round(targetResolution * 0.04);
             const qrSize = targetResolution - (padding * 2);
             ctx.drawImage(imgEl, padding, padding, qrSize, qrSize);
         }
