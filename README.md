@@ -2,7 +2,7 @@
 
 A modern, fast, client-side QR code generator with a frosted glassmorphism interface, ambient gradients, and high-quality exports.
 
-**Live Deployment:** [https://qrcode-generator.pages.dev](https://qrcode-generator.pages.dev)
+**Live Deployment:** [https://free-qrcode.pages.dev](https://free-qrcode.pages.dev)
 
 ---
 
