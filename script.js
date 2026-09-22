@@ -203,6 +203,7 @@ function initResultPage() {
     const payloadText = document.getElementById('payloadText');
     const copyBtn = document.getElementById('copyBtn');
     const downloadPng = document.getElementById('downloadPng');
+    const downloadTransparentPng = document.getElementById('downloadTransparentPng');
     const downloadPdf = document.getElementById('downloadPdf');
 
     if (!qrContainer) return;
@@ -341,16 +342,20 @@ function initResultPage() {
     }
 
     // Helper: Build crisp high-resolution export canvas (strictly 2048×2048 for print)
-    function getHighResCanvas(targetResolution = 2048, quietZoneModules = 2) {
+    function getHighResCanvas(targetResolution = 2048, quietZoneModules = 2, transparent = false) {
         const model = qrContainer._qrModel;
         const exportCanvas = document.createElement('canvas');
         exportCanvas.width = targetResolution;
         exportCanvas.height = targetResolution;
         const ctx = exportCanvas.getContext('2d');
 
-        // Crisp white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, targetResolution, targetResolution);
+        // Background: Crisp white or 100% transparent alpha channel
+        if (!transparent) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, targetResolution, targetResolution);
+        } else {
+            ctx.clearRect(0, 0, targetResolution, targetResolution);
+        }
         ctx.imageSmoothingEnabled = false;
 
         // Mathematical cell-by-cell rendering using the exact ISO matrix with integer pixel scaling
@@ -393,11 +398,11 @@ function initResultPage() {
         return exportCanvas;
     }
 
-    // 1. Download Ultra High-Quality PNG (2048×2048 for print)
+    // 1. Download Ultra High-Quality PNG with White Background (2048×2048)
     if (downloadPng) {
         downloadPng.addEventListener('click', () => {
             try {
-                const canvas = getHighResCanvas(2048, 2);
+                const canvas = getHighResCanvas(2048, 2, false);
                 const link = document.createElement('a');
                 link.download = `qrcode-hd-${Date.now()}.png`;
                 link.href = canvas.toDataURL('image/png');
@@ -409,7 +414,23 @@ function initResultPage() {
         });
     }
 
-    // 2. Download High-Quality PDF (A4 Document)
+    // 2. Download Ultra High-Quality Transparent PNG without Background (2048×2048)
+    if (downloadTransparentPng) {
+        downloadTransparentPng.addEventListener('click', () => {
+            try {
+                const canvas = getHighResCanvas(2048, 2, true);
+                const link = document.createElement('a');
+                link.download = `qrcode-transparent-hd-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('Transparent PNG downloaded');
+            } catch (err) {
+                showToast('Could not download transparent PNG', true);
+            }
+        });
+    }
+
+    // 3. Download High-Quality PDF (A4 Document)
     if (downloadPdf) {
         downloadPdf.addEventListener('click', () => {
             try {

@@ -64,29 +64,37 @@
                 </button>
             </div>
 
-            <!-- Download Options: PNG & PDF Only (High Quality) -->
+            <!-- Download Options: PNG (White), PNG (Transparent), & PDF -->
             <div class="download-actions">
-                <button type="button" class="btn-download btn-download--png" id="downloadPng">
-                    <svg viewBox="0 0 24 24">
+                <button type="button" class="btn-download btn-download--png" id="downloadPng" title="Download 2048x2048 PNG with white background">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                     </svg>
-                    Download PNG
+                    PNG (White)
                 </button>
-                <button type="button" class="btn-download btn-download--pdf" id="downloadPdf">
-                    <svg viewBox="0 0 24 24">
+                <button type="button" class="btn-download btn-download--transparent" id="downloadTransparentPng" title="Download 2048x2048 transparent PNG without background">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                     </svg>
-                    Download PDF
+                    PNG (No BG)
+                </button>
+                <button type="button" class="btn-download btn-download--pdf" id="downloadPdf" title="Download print-ready A4 PDF">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+                    </svg>
+                    PDF (Print)
                 </button>
             </div>
 
-            <!-- Generate Another -->
-            <a href="index.html" class="btn-secondary">
-                <svg viewBox="0 0 24 24">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                </svg>
-                Generate Another QR Code
-            </a>
+            <!-- Compact Navigation Link (Zero-Scroll Architecture) -->
+            <div class="card-footer-nav">
+                <a href="index.html" class="link-secondary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    </svg>
+                    Generate Another QR Code
+                </a>
+            </div>
         </div>
     </main>
 

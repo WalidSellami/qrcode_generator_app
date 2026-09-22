@@ -612,23 +612,34 @@ body::after {
 /* Download Actions Grid */
 .download-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+@media (max-width: 540px) {
+    .download-actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+    }
+
+    .btn-download--pdf {
+        grid-column: span 2;
+    }
 }
 
 .btn-download {
-    min-height: 50px;
-    padding: 0.95rem 1.25rem;
+    min-height: 46px;
+    padding: 0.75rem 0.85rem;
     border-radius: var(--radius-md);
     font-family: var(--font-sans);
-    font-size: 0.94rem;
+    font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
+    gap: 0.45rem;
     transition: all 0.25s var(--ease-spring);
     border: 1px solid transparent;
     text-decoration: none;
@@ -636,12 +647,14 @@ body::after {
     -webkit-backdrop-filter: blur(12px);
     position: relative;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .btn-download svg {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     fill: currentColor;
+    flex-shrink: 0;
     transition: transform 0.2s ease;
 }
 
@@ -660,7 +673,21 @@ body::after {
     background: var(--accent);
     color: #ffffff;
     box-shadow: 0 10px 26px var(--accent-glow), var(--glass-shine);
-    transform: translateY(-3px);
+    transform: translateY(-2px);
+}
+
+.btn-download--transparent {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15), var(--glass-shine);
+}
+
+.btn-download--transparent:hover {
+    background: #f59e0b;
+    color: #0b1120;
+    box-shadow: 0 10px 26px rgba(245, 158, 11, 0.35), var(--glass-shine);
+    transform: translateY(-2px);
 }
 
 .btn-download--pdf {
@@ -674,50 +701,42 @@ body::after {
     background: var(--pdf-accent);
     color: #0b1329;
     box-shadow: 0 10px 26px rgba(56, 189, 248, 0.38), var(--glass-shine);
-    transform: translateY(-3px);
+    transform: translateY(-2px);
 }
 
 .btn-download:active {
     transform: translateY(0) scale(0.98);
 }
 
-/* Secondary Button */
-.btn-secondary {
+/* Compact Footer Navigation (Zero-Scroll Design) */
+.card-footer-nav {
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.link-secondary {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.55rem;
-    width: 100%;
-    min-height: 46px;
-    padding: 0.85rem 1.25rem;
-    background: rgba(255, 255, 255, 0.03);
+    gap: 0.45rem;
     color: var(--text-muted);
-    border: 1px solid var(--border-glass);
-    border-radius: var(--radius-md);
-    font-family: var(--font-sans);
-    font-size: 0.9rem;
+    font-size: 0.84rem;
     font-weight: 600;
     text-decoration: none;
-    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--radius-sm);
     transition: all 0.2s ease;
-    backdrop-filter: blur(8px);
 }
 
-.btn-secondary:hover {
-    color: var(--text-primary);
-    border-color: var(--border-glass-hover);
-    background: var(--card-glass-hover);
-    transform: translateY(-1px);
+.link-secondary:hover {
+    color: var(--accent-hover);
+    background: rgba(255, 255, 255, 0.04);
 }
 
-.btn-secondary:active {
-    transform: scale(0.985);
-}
-
-.btn-secondary svg {
-    width: 16px;
-    height: 16px;
+.link-secondary svg {
+    width: 14px;
+    height: 14px;
     fill: currentColor;
+    flex-shrink: 0;
 }
 
 /* ==========================================================================
