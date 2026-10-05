@@ -78,6 +78,9 @@ summary,
 }
 
 html {
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -238,21 +241,21 @@ body::after {
 }
 
 .app-header h1 {
-    font-size: clamp(1.65rem, 4vw + 0.4rem, 2.15rem);
+    font-size: clamp(1.4rem, 3.8vw, 2.05rem);
     font-weight: 800;
-    letter-spacing: -0.035em;
+    letter-spacing: -0.03em;
     line-height: 1.25;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.45rem;
     color: var(--text-primary);
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
 }
 
 .app-header p {
-    font-size: clamp(0.92rem, 1.5vw + 0.4rem, 1.02rem);
+    font-size: clamp(0.88rem, 1.4vw + 0.35rem, 0.98rem);
     color: var(--text-secondary);
     max-width: 440px;
     margin: 0 auto;
-    line-height: 1.55;
+    line-height: 1.5;
 }
 
 /* ==========================================================================
@@ -372,25 +375,27 @@ body::after {
 .btn-primary {
     width: 100%;
     min-height: 48px;
-    padding: 0.95rem 1.5rem;
+    padding: 0.85rem 1.4rem;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: var(--radius-md);
     font-family: var(--font-sans);
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: -0.01em;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.65rem;
     position: relative;
     overflow: hidden;
-    transition: all 0.25s var(--ease-spring);
-    box-shadow: 0 6px 22px var(--accent-glow), var(--glass-shine);
+    transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease, background 0.25s ease, border-color 0.25s ease;
+    box-shadow: 0 6px 20px var(--accent-glow), var(--glass-shine);
     text-decoration: none;
+    -webkit-user-select: none;
+    user-select: none;
+    transform: translateZ(0);
 }
 
 /* Shimmer Light Sweep on Hover */
@@ -401,35 +406,143 @@ body::after {
     left: -120%;
     width: 60%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
     transform: skewX(-20deg);
     transition: left 0.65s ease;
+    pointer-events: none;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(.is-loading) {
     background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 28px rgba(16, 185, 129, 0.4), var(--glass-shine);
+    transform: translateY(-2px) translateZ(0);
+    box-shadow: 0 10px 26px rgba(16, 185, 129, 0.38), var(--glass-shine);
 }
 
-.btn-primary:hover::after {
+.btn-primary:hover:not(.is-loading)::after {
     left: 150%;
 }
 
-.btn-primary:active {
-    transform: translateY(0) scale(0.985);
-    box-shadow: 0 4px 14px var(--accent-glow);
+.btn-primary:active:not(.is-loading) {
+    transform: translateY(0) scale(0.985) translateZ(0);
+    box-shadow: 0 4px 12px var(--accent-glow);
 }
 
-.btn-primary svg {
-    width: 20px;
-    height: 20px;
+/* Button Default Content Container */
+.btn-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    transition: opacity 0.2s ease, transform 0.22s var(--ease-spring);
+    will-change: opacity, transform;
+}
+
+.btn-content svg {
+    width: 19px;
+    height: 19px;
     fill: currentColor;
     transition: transform 0.25s ease;
+    flex-shrink: 0;
 }
 
-.btn-primary:hover svg {
+.btn-primary:hover:not(.is-loading) .btn-content svg {
     transform: rotate(6deg) scale(1.08);
+}
+
+/* Premium Seamless Loading Indicator Overlay */
+.btn-loading-state {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(0, 8px, 0);
+    transition: opacity 0.2s ease, transform 0.22s var(--ease-spring);
+    will-change: opacity, transform;
+}
+
+/* Active Loading State */
+.btn-primary.is-loading {
+    pointer-events: none;
+    cursor: wait;
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.45), var(--glass-shine);
+    transform: scale(0.99) translateZ(0);
+    border-color: rgba(52, 211, 153, 0.55);
+}
+
+.btn-primary.is-loading::after {
+    display: none;
+}
+
+.btn-primary.is-loading .btn-content {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+}
+
+.btn-primary.is-loading .btn-loading-state {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+}
+
+/* Precision SVG Spinner */
+.btn-spinner {
+    width: 20px;
+    height: 20px;
+    animation: btnSpin 0.7s linear infinite !important;
+    display: inline-block;
+    flex-shrink: 0;
+    transform-origin: center center;
+    will-change: transform;
+}
+
+@keyframes btnSpin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-loading-text {
+    font-size: 0.92rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* Micro Hairline Progress Line */
+.btn-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2.5px;
+    width: 0%;
+    background: linear-gradient(90deg, #34d399, #a7f3d0);
+    box-shadow: 0 0 6px #34d399;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.btn-primary.is-loading .btn-progress-bar {
+    opacity: 1;
+    animation: btnProgressFill 0.55s ease-out forwards;
+}
+
+@keyframes btnProgressFill {
+    0% {
+        width: 0%;
+    }
+    45% {
+        width: 68%;
+    }
+    100% {
+        width: 100%;
+    }
 }
 
 /* ==========================================================================
@@ -515,6 +628,40 @@ body::after {
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
+    }
+}
+
+/* High-Precision Laser Scan Sweep Animation */
+.qr-frame::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3.5px;
+    background: linear-gradient(90deg, transparent, #10b981 30%, #34d399 50%, #10b981 70%, transparent);
+    box-shadow: 0 0 12px #10b981, 0 0 4px #34d399;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    will-change: transform, opacity;
+    animation: qrScanBeam 1.8s cubic-bezier(0.4, 0, 0.2, 1) 0.3s 2 forwards;
+}
+
+@keyframes qrScanBeam {
+    0% {
+        transform: translate3d(0, 0, 0);
+        opacity: 0;
+    }
+    15% {
+        opacity: 0.9;
+    }
+    85% {
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate3d(0, 240px, 0);
+        opacity: 0;
     }
 }
 
@@ -1026,39 +1173,175 @@ body::after {
 }
 
 /* ==========================================================================
-   Responsive Adaptations
+   Responsive Adaptations & Mobile Hardware Performance
    ========================================================================== */
 @media (max-width: 640px) {
+    /* Prevent heavy GPU fill-rate throttling on Firefox Mobile */
+    body::before,
+    body::after {
+        filter: blur(40px);
+        animation: none !important;
+        opacity: 0.35;
+    }
+
     body {
-        padding: 1.25rem 0.85rem;
+        padding: 1.15rem 0.85rem;
         justify-content: flex-start;
+    }
+
+    /* Refined Mobile Typography (Proportional & Compact) */
+    .app-header {
+        margin-bottom: 1.15rem;
+    }
+
+    .brand-icon {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 0.75rem;
+    }
+
+    .brand-icon svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .app-header h1 {
+        font-size: 1.4rem;
+        line-height: 1.22;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.35rem;
+    }
+
+    .app-header p {
+        font-size: 0.86rem;
+        line-height: 1.45;
+        max-width: 320px;
     }
 
     .main-card {
         border-radius: var(--radius-lg);
+        padding: 1.15rem 0.95rem;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    .input-field {
+        font-size: 0.94rem;
+        padding: 0.8rem 0.95rem;
+        min-height: 110px;
+        line-height: 1.45;
+    }
+
+    .btn-primary {
+        min-height: 46px;
+        font-size: 0.92rem;
+        padding: 0.8rem 1.1rem;
+    }
+
+    .seo-content-section {
+        margin-top: 2rem;
+        gap: 1.25rem;
+    }
+
+    .seo-card {
+        padding: 1.15rem 0.95rem;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+    }
+
+    .seo-card h2 {
+        font-size: 1.05rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .step-item {
+        gap: 0.8rem;
+    }
+
+    .step-num {
+        width: 28px;
+        height: 28px;
+        font-size: 0.82rem;
+        flex-shrink: 0;
+    }
+
+    .step-info h3 {
+        font-size: 0.92rem;
+    }
+
+    .step-info p {
+        font-size: 0.83rem;
+        line-height: 1.45;
+    }
+
+    .feature-box h3 {
+        font-size: 0.9rem;
+    }
+
+    .feature-box p {
+        font-size: 0.83rem;
+        line-height: 1.45;
+    }
+
+    .faq-question {
+        font-size: 0.9rem;
+        padding: 0.85rem 0;
+    }
+
+    .faq-answer p {
+        font-size: 0.83rem;
+        line-height: 1.5;
     }
 
     .download-actions {
         grid-template-columns: 1fr;
+        gap: 0.55rem;
+    }
+
+    .btn-download {
+        min-height: 44px;
+        font-size: 0.85rem;
     }
 
     .features-grid {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 
     .qr-frame {
-        width: min(280px, 100%);
-        padding: 12px;
+        width: min(250px, 100%);
+        padding: 10px;
+        margin-bottom: 1.2rem;
     }
 }
 
 @media (max-width: 360px) {
     .qr-frame {
-        width: min(240px, 100%);
-        padding: 10px;
+        width: min(220px, 100%);
+        padding: 8px;
     }
 
     .app-header h1 {
-        font-size: 1.5rem;
+        font-size: 1.28rem;
+    }
+
+    .app-header p {
+        font-size: 0.82rem;
+    }
+}
+
+/* ==========================================================================
+   Accessibility & Reduced Motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    *:not(.btn-spinner):not(.btn-spinner *) {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .btn-spinner {
+        animation: btnSpin 0.8s linear infinite !important;
     }
 }

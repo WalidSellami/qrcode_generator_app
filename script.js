@@ -177,12 +177,29 @@ function initInputPage() {
             sessionStorage.setItem('qr_text', value);
         } catch (err) { }
 
-        // For maximum mobile compatibility (e.g. strict private/incognito browsing or in-app webviews),
-        // also pass as URL query param if within safe URL length (<1500 chars)
-        if (value.length < 1500) {
-            window.location.href = 'result.html?data=' + encodeURIComponent(value);
-        } else {
-            window.location.href = 'result.html';
+        // Premium Loading UX: Button State Transition & Scanning Animation
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn) {
+            generateBtn.disabled = true;
+            generateBtn.classList.add('is-loading');
+        }
+
+        // Smooth perceptual micro-delay to let the user see the premium generation animation
+        setTimeout(() => {
+            if (value.length < 1500) {
+                window.location.href = 'result.html?data=' + encodeURIComponent(value);
+            } else {
+                window.location.href = 'result.html';
+            }
+        }, 650);
+    });
+
+    // Reset button state if user returns via Firefox/Mobile Back-Forward Cache (bfcache)
+    window.addEventListener('pageshow', () => {
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn) {
+            generateBtn.disabled = false;
+            generateBtn.classList.remove('is-loading');
         }
     });
 
