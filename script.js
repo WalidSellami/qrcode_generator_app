@@ -505,6 +505,110 @@ function initResultPage() {
 }
 
 // --------------------------------------------------------------------------
+// FAQ Accordion Interaction (Smooth Spring Auto-Collapse)
+// --------------------------------------------------------------------------
+function initFaqAccordion() {
+    const faqItems = document.querySelectorAll('.faq-item');
+    if (!faqItems.length) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    faqItems.forEach(item => {
+        const summary = item.querySelector('.faq-question');
+        const answer = item.querySelector('.faq-answer');
+        if (!summary || !answer) return;
+
+        summary.setAttribute('aria-expanded', item.hasAttribute('open') ? 'true' : 'false');
+
+        summary.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            const isCurrentlyOpen = item.hasAttribute('open');
+
+            if (isCurrentlyOpen) {
+                collapseItem(item, answer, summary);
+            } else {
+                // Auto-collapse siblings
+                faqItems.forEach(otherItem => {
+                    if (otherItem !== item && otherItem.hasAttribute('open')) {
+                        const otherSummary = otherItem.querySelector('.faq-question');
+                        const otherAnswer = otherItem.querySelector('.faq-answer');
+                        if (otherAnswer && otherSummary) {
+                            collapseItem(otherItem, otherAnswer, otherSummary);
+                        }
+                    }
+                });
+                expandItem(item, answer, summary);
+            }
+        });
+    });
+
+    function expandItem(item, answer, summary) {
+        if (prefersReducedMotion) {
+            item.setAttribute('open', '');
+            summary.setAttribute('aria-expanded', 'true');
+            return;
+        }
+
+        item.setAttribute('open', '');
+        summary.setAttribute('aria-expanded', 'true');
+
+        const height = answer.scrollHeight;
+        answer.style.height = '0px';
+        answer.style.opacity = '0';
+        answer.style.overflow = 'hidden';
+
+        requestAnimationFrame(() => {
+            answer.style.transition = 'height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease';
+            answer.style.height = height + 'px';
+            answer.style.opacity = '1';
+        });
+
+        const onTransitionEnd = (e) => {
+            if (e.propertyName === 'height') {
+                answer.style.height = '';
+                answer.style.opacity = '';
+                answer.style.overflow = '';
+                answer.style.transition = '';
+                answer.removeEventListener('transitionend', onTransitionEnd);
+            }
+        };
+        answer.addEventListener('transitionend', onTransitionEnd);
+    }
+
+    function collapseItem(item, answer, summary) {
+        if (prefersReducedMotion) {
+            item.removeAttribute('open');
+            summary.setAttribute('aria-expanded', 'false');
+            return;
+        }
+
+        const height = answer.scrollHeight;
+        answer.style.height = height + 'px';
+        answer.style.overflow = 'hidden';
+
+        requestAnimationFrame(() => {
+            answer.style.transition = 'height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease';
+            answer.style.height = '0px';
+            answer.style.opacity = '0';
+        });
+
+        const onTransitionEnd = (e) => {
+            if (e.propertyName === 'height') {
+                item.removeAttribute('open');
+                summary.setAttribute('aria-expanded', 'false');
+                answer.style.height = '';
+                answer.style.opacity = '';
+                answer.style.overflow = '';
+                answer.style.transition = '';
+                answer.removeEventListener('transitionend', onTransitionEnd);
+            }
+        };
+        answer.addEventListener('transitionend', onTransitionEnd);
+    }
+}
+
+// --------------------------------------------------------------------------
 // Initialization
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
@@ -514,4 +618,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('qrcode')) {
         initResultPage();
     }
+    if (document.querySelector('.faq-list')) {
+        initFaqAccordion();
+    }
 });
+
